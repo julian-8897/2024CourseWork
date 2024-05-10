@@ -194,6 +194,7 @@ def train(
     batch_time = AverageMeter()
     data_time = AverageMeter()
 
+    wandb.watch(model, log="all", log_freq=10)
     model.train()
     for p in model.parameters():
         p.requires_grad = True  # open all layers
@@ -341,7 +342,13 @@ def test(
     print("CMC curve")
     for r in ranks:
         print("Rank-{:<3}: {:.1%}".format(r, cmc[r - 1]))
+        wandb.log({f"Rank-{r}": cmc[r - 1]})
     print("------------------")
+
+    wandb.log({"mAP": mAP})
+
+    torch.onnx.export(model, imgs, "model.onnx")
+    wandb.save("model.onnx")
 
     if return_distmat:
         return distmat
