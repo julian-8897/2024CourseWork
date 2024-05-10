@@ -40,7 +40,7 @@ args = parser.parse_args()
 
 
 def main():
-    wandb.login()
+    # wandb.login()
     global args
 
     run = wandb.init(project="vehicle-reid", config=vars(args))
