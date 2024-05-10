@@ -12,8 +12,8 @@ import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
-import wandb
 
+import wandb
 from args import argument_parser, dataset_kwargs, lr_scheduler_kwargs, optimizer_kwargs
 from src import models
 from src.data_manager import ImageDataManager
@@ -40,7 +40,7 @@ args = parser.parse_args()
 
 
 def main():
-    # wandb.login()
+    wandb.login()
     global args
 
     run = wandb.init(project="vehicle-reid", config=vars(args))
