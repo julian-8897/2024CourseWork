@@ -5,17 +5,20 @@ import os
 import os.path as osp
 import sys
 import time
+import uuid
 import warnings
 
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
-from args import argument_parser, dataset_kwargs, optimizer_kwargs, lr_scheduler_kwargs
+import wandb
+
+from args import argument_parser, dataset_kwargs, lr_scheduler_kwargs, optimizer_kwargs
 from src import models
 from src.data_manager import ImageDataManager
 from src.eval_metrics import evaluate
-from src.losses import CrossEntropyLoss, TripletLoss, DeepSupervision
+from src.losses import CrossEntropyLoss, DeepSupervision, TripletLoss
 from src.lr_schedulers import init_lr_scheduler
 from src.optimizers import init_optimizer
 from src.utils.avgmeter import AverageMeter
@@ -23,14 +26,13 @@ from src.utils.generaltools import set_random_seed
 from src.utils.iotools import check_isfile
 from src.utils.loggers import Logger, RankLogger
 from src.utils.torchtools import (
-    count_num_param,
     accuracy,
+    count_num_param,
     load_pretrained_weights,
-    save_checkpoint,
     resume_from_checkpoint,
+    save_checkpoint,
 )
 from src.utils.visualtools import visualize_ranked_results
-import uuid
 
 # global variables
 parser = argument_parser()
@@ -38,7 +40,10 @@ args = parser.parse_args()
 
 
 def main():
+    # wandb.login()
     global args
+
+    run = wandb.init(project="vehicle-reid", config=vars(args))
 
     set_random_seed(args.seed)
     if not args.use_avai_gpus:
@@ -49,12 +54,16 @@ def main():
     log_name = "log_test.txt" if args.evaluate else "log_train.txt"
     sys.stdout = Logger(osp.join(args.save_dir, log_name))
     print("==========")
-    student_id = os.environ.get('STUDENT_ID', '<your id>')
-    student_name = os.environ.get('STUDENT_NAME', '<your name>')
+    student_id = os.environ.get("STUDENT_ID", "<your id>")
+    student_name = os.environ.get("STUDENT_NAME", "<your name>")
     print("Student ID:{}".format(student_id))
     print("Student name:{}".format(student_name))
     print("UUID:{}".format(uuid.uuid4()))
-    print("Experiment time:{}".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+    print(
+        "Experiment time:{}".format(
+            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        )
+    )
     print("==========")
     print(f"==========\nArgs:{args}\n==========")
 
@@ -173,6 +182,8 @@ def main():
     print(f"Elapsed {elapsed}")
     ranklogger.show_summary()
 
+    run.finish()
+
 
 def train(
     epoch, model, criterion_xent, criterion_htri, optimizer, trainloader, use_gpu
@@ -233,6 +244,18 @@ def train(
                     htri=htri_losses,
                     acc=accs,
                 )
+            )
+
+            wandb.log(
+                {
+                    "epoch": epoch,
+                    "batch_idx": batch_idx,
+                    "batch_time": batch_time.val,
+                    "data_time": data_time.val,
+                    "xent": xent_losses.val,
+                    "htri": htri_losses.val,
+                    "acc": accs.val,
+                }
             )
 
         end = time.time()
